@@ -1,6 +1,6 @@
-// Only executed when in MODE_FWD/MODE_5050/MODE_CUSTOM
+// Seulement exécuté lorsqu'en MODE_FWD/MODE_5050/MODE_CUSTOM
 float get_lock_target_adjustment() {
-  // Handle FWD and 5050 modes.
+  // Gestion des modes FWD et 5050.
   switch (state.mode) {
     case MODE_FWD:
       return 0;
@@ -31,18 +31,18 @@ float get_lock_target_adjustment() {
       return 0;
   }
 
-  // Getting here means it's in not FWD or 5050/7525.
+  // Se rendre ici signifie qu'il n'est pas FWD ou 5050/7525.
 
-  // Check if locking is necessary.
+  // Vérifier si le verrouillage est nécessaire.
   if (!(int(received_pedal_value) >= state.pedal_threshold || state.pedal_threshold == 0 || received_vehicle_speed < disableSpeed || state.mode_override)) {
     return 0;
   }
 
-  // Find the pair of lockpoints between which the vehicle speed falls.
+  // Trouver la paire de points de verrouillage entre laquelle la vitesse du véhicule chute.
   lockpoint_t lp_lower = state.custom_mode.lockpoints[0];
   lockpoint_t lp_upper = state.custom_mode.lockpoints[state.custom_mode.lockpoint_count - 1];
 
-  // Look for the lockpoint above the current vehicle speed.
+  // Déterminer le point de verrouillage au-dessus de la vitesse actuelle.
   for (uint8_t i = 0; i < state.custom_mode.lockpoint_count; i++) {
     if (received_vehicle_speed <= state.custom_mode.lockpoints[i].speed) {
       lp_upper = state.custom_mode.lockpoints[i];
@@ -51,38 +51,38 @@ float get_lock_target_adjustment() {
     }
   }
 
-  // Handle the case where the vehicle speed is lower than the lowest lockpoint.
+  // Gestion du cas ou la vitesse du véhicule est inférieure au point de verrouillage le plus bas.
   if (received_vehicle_speed <= lp_lower.speed) {
     return lp_lower.lock;
   }
 
-  // Handle the case where the vehicle speed is higher than the highest lockpoint.
+  // Gestion du cas ou la vitesse du véhicule est supérieure au point de verrouillage le plus haut.
   if (received_vehicle_speed >= lp_upper.speed) {
     return lp_upper.lock;
   }
 
-  // In all other cases, interpolation is necessary.
+  // Dans tous les autres cas, l'interpolation est nécessaire..
   float inter = (float)(lp_upper.speed - lp_lower.speed) / (float)(received_vehicle_speed - lp_lower.speed);
 
-  // Calculate the target.
+  // Calculer la cible.
   float target = lp_lower.lock + ((float)(lp_upper.lock - lp_lower.lock) / inter);
   //DEBUG("lp_upper:%d@%d lp_lower:%d@%d speed:%d target:%0.2f", lp_upper.lock, lp_upper.speed, lp_lower.lock, lp_lower.speed, received_vehicle_speed, target);
   return target;
 }
 
-// Only executed when in MODE_FWD/MODE_5050/MODE_CUSTOM
+// Seulement exécuté lorsqu'en MODE_FWD/MODE_5050/MODE_CUSTOM
 uint8_t get_lock_target_adjusted_value(uint8_t value, bool invert) {
-  // Handle 5050 mode.
+  // Gestion du mode 5050.
   if (lock_target == 100) {
-    // is this needed?  Should be caught in get_lock_target_adjustment
+    // est-ce nécessaire?  Devrait être saisi dans get_lock_target_adjustment
     if (int(received_pedal_value) >= state.pedal_threshold || received_vehicle_speed < disableSpeed || state.pedal_threshold == 0) {
       return (invert ? (0xFE - value) : value);
     }
     return (invert ? 0xFE : 0x00);
   }
 
-  // Handle FWD and CUSTOM modes.
-  // No correction is necessary if the target is already 0.
+  // Gestion des modes FWD et CUSTOM.
+  // Aucune correction nécessaire si la cible est 0.
   if (lock_target == 0) {
     return (invert ? 0xFE : 0x00);
   }
@@ -95,64 +95,64 @@ uint8_t get_lock_target_adjusted_value(uint8_t value, bool invert) {
   return (invert ? 0xFE : 0x00);
 }
 
-// Only executed when in MODE_FWD/MODE_5050/MODE_CUSTOM
+// Seulement exécuté lorsqu'en MODE_FWD/MODE_5050/MODE_CUSTOM
 void getLockData(twai_message_t& rx_message_chs) {
-  // Get the initial lock target.
+  // Obternir la cible de verrouillage initiale.
   lock_target = get_lock_target_adjustment();
 
-  // Edit the frames if configured as Gen1...
+  // Modifier les trames si configuré en Gen1...
   if (haldexGeneration == 1) {
     switch (rx_message_chs.identifier) {
       case MOTOR1_ID:
-        rx_message_chs.data[0] = 0x00;                                         // various individual bits ('space gas', driving pedal, kick down, clutch, timeout brake, brake intervention, drinks-torque intervention?) was 0x01 - ignored
+        rx_message_chs.data[0] = 0x00;                                         // octets individuels variés ('space gas', driving pedal, kick down, clutch, timeout brake, brake intervention, "drinks-torque intervention"?) était 0x01 - ignoré
         rx_message_chs.data[1] = get_lock_target_adjusted_value(0xFE, false);  // rpm low byte
         rx_message_chs.data[2] = 0x21;                                         // rpm high byte
-        rx_message_chs.data[3] = get_lock_target_adjusted_value(0x4E, false);  // set RPM to a value so the pre-charge pump runs
-        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xFE, false);  // inner moment (%): 0.39*(0xF0) = 93.6%  (make FE?) - ignored
-        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // driving pedal (%): 0.39*(0xF0) = 93.6%  (make FE?) - ignored
-                                                                               // rx_message_chs.data[6] = get_lock_target_adjusted_value(0x16, false);  // set to a low value to control the req. transfer torque.  Main control value for Gen1
+        rx_message_chs.data[3] = get_lock_target_adjusted_value(0x4E, false);  // régler les tours-minute à une valeur pour que la pompe de précharge marche
+        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xFE, false);  // inner moment (%): 0.39*(0xF0) = 93.6%  (make FE?) - ignoré
+        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // driving pedal (%): 0.39*(0xF0) = 93.6%  (make FE?) - ignoré
+                                                                               // rx_message_chs.data[6] = get_lock_target_adjusted_value(0x16, false);  // régler à une valeur basse poru contrôler le transfer torque requis.  Valeur de contrôle principale pour Gen1
         switch (state.mode) {
           case MODE_FWD:
-            appliedTorque = get_lock_target_adjusted_value(0xFE, true);  // return 0xFE to disable
+            appliedTorque = get_lock_target_adjusted_value(0xFE, true);  // retourner 0xFE pour désactiver
             break;
           case MODE_5050:
-            appliedTorque = get_lock_target_adjusted_value(0x16, false);  // return 0x16 to fully lock
+            appliedTorque = get_lock_target_adjusted_value(0x16, false);  // retourner 0x16 pour verouiller pleinement
             break;
           case MODE_6040:
-            appliedTorque = get_lock_target_adjusted_value(0x22, false);  // set to ~30% lock (0x96 = 15%, 0x56 = 27%)
+            appliedTorque = get_lock_target_adjusted_value(0x22, false);  // régler à ~30% de verrouillage (0x96 = 15%, 0x56 = 27%)
             break;
           case MODE_7525:
-            appliedTorque = get_lock_target_adjusted_value(0x50, false);  // set to ~30% lock (0x96 = 15%, 0x56 = 27%)
+            appliedTorque = get_lock_target_adjusted_value(0x50, false);  // régler à ~30% verrouillage (0x96 = 15%, 0x56 = 27%)
             break;
         }
 
-        rx_message_chs.data[6] = appliedTorque;  // was 0x00
-        rx_message_chs.data[7] = 0x00;           // these must play a factor - achieves ~169 without
+        rx_message_chs.data[6] = appliedTorque;  // était 0x00
+        rx_message_chs.data[7] = 0x00;           // celles-ci doivent jouer un rôle - atteint ~169 sans
         break;
       case MOTOR3_ID:
-        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xFE, false);  // pedal - ignored
-        rx_message_chs.data[7] = get_lock_target_adjusted_value(0xFE, false);  // throttle angle (100%), ignored
+        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xFE, false);  // pédale - ignoré
+        rx_message_chs.data[7] = get_lock_target_adjusted_value(0xFE, false);  // throttle angle (100%), ignoré
         break;
       case BRAKES1_ID:
-        rx_message_chs.data[1] = get_lock_target_adjusted_value(0x00, false);  // also controlling slippage.  Brake force can add 20%
-        rx_message_chs.data[2] = 0x00;                                         //  ignored
-        rx_message_chs.data[3] = get_lock_target_adjusted_value(0x0A, false);  // 0xA ignored?
+        rx_message_chs.data[1] = get_lock_target_adjusted_value(0x00, false);  // contrôle aussi le patinage.  La force de freinage peut ajouter 20%
+        rx_message_chs.data[2] = 0x00;                                         //  ignoré
+        rx_message_chs.data[3] = get_lock_target_adjusted_value(0x0A, false);  // 0xA ignorée?
         break;
       case BRAKES3_ID:
-        rx_message_chs.data[0] = get_lock_target_adjusted_value(0xFE, false);  // low byte, LEFT Front // affects slightly +2
-        rx_message_chs.data[1] = 0x0A;                                         // high byte, LEFT Front big effect
-        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xFE, false);  // low byte, RIGHT Front// affects slightly +2
-        rx_message_chs.data[3] = 0x0A;                                         // high byte, RIGHT Front big effect
-        rx_message_chs.data[4] = 0x00;                                         // low byte, LEFT Rear
-        rx_message_chs.data[5] = 0x0A;                                         // high byte, LEFT Rear // 254+10? (5050 returns 0xA)
-        rx_message_chs.data[6] = 0x00;                                         // low byte, RIGHT Rear
-        rx_message_chs.data[7] = 0x0A;                                         // high byte, RIGHT Rear  // 254+10?
+        rx_message_chs.data[0] = get_lock_target_adjusted_value(0xFE, false);  // low byte, Av. GAUCHE // affecte légèrement +2
+        rx_message_chs.data[1] = 0x0A;                                         // high byte, Av. GAUCHE grand effet
+        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xFE, false);  // low byte, Av. DROITE // affecte légèrement +2
+        rx_message_chs.data[3] = 0x0A;                                         // high byte, Av. DROITE grand effet
+        rx_message_chs.data[4] = 0x00;                                         // low byte, Arr. GAUCHE
+        rx_message_chs.data[5] = 0x0A;                                         // high byte, Arr. GAUCHE // 254+10? (5050 retourne 0xA)
+        rx_message_chs.data[6] = 0x00;                                         // low byte, Arr. DROITE
+        rx_message_chs.data[7] = 0x0A;                                         // high byte, Arr. DROITE  // 254+10?
         break;
     }
   }
 
-  // Edit the frames if configured as Gen2...
-  if (haldexGeneration == 2) {  // Edit the frames if configured as Gen2.  Currently copied from Gen4...
+    // Modifier les trames si configuré en Gen2...
+  if (haldexGeneration == 2) {  // Modifier les trames si configuré en Gen2.  Présentement copié de Gen4...
     switch (rx_message_chs.identifier) {
       case MOTOR1_ID:
         rx_message_chs.data[1] = get_lock_target_adjusted_value(0xFE, false);
@@ -162,19 +162,19 @@ void getLockData(twai_message_t& rx_message_chs) {
         break;
       case MOTOR3_ID:
         rx_message_chs.data[2] = get_lock_target_adjusted_value(0xFE, false);
-        rx_message_chs.data[7] = get_lock_target_adjusted_value(0x01, false);  // gen1 is 0xFE, gen4 is 0x01
+        rx_message_chs.data[7] = get_lock_target_adjusted_value(0x01, false);  // gen1 est 0xFE, gen4 est 0x01
         break;
       case MOTOR6_ID:
         break;
       case BRAKES1_ID:
         rx_message_chs.data[0] = get_lock_target_adjusted_value(0x80, false);
         rx_message_chs.data[1] = get_lock_target_adjusted_value(0x41, false);
-        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xFE, false);  // gen1 is 0x00, gen4 is 0xFE
+        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xFE, false);  // gen1 est 0x00, gen4 est 0xFE
         rx_message_chs.data[3] = 0x0A;
         break;
       case BRAKES2_ID:
-        rx_message_chs.data[4] = get_lock_target_adjusted_value(0x7F, false);  // big affect(!) 0x7F is max
-        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // no effect.  Was 0x6E
+        rx_message_chs.data[4] = get_lock_target_adjusted_value(0x7F, false);  // grand effet(!) 0x7F est le maximum
+        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // aucun effet.  Était 0x6E
         break;
       case BRAKES3_ID:
         rx_message_chs.data[0] = get_lock_target_adjusted_value(0xFE, false);
@@ -188,58 +188,57 @@ void getLockData(twai_message_t& rx_message_chs) {
         break;
     }
   }
-  // Edit the frames if configured as Gen4...
+  // Modifier les trames si configuré en Gen4...
   if (haldexGeneration == 4) {
     switch (rx_message_chs.identifier) {
       case mLW_1:
-        rx_message_chs.data[0] = lws_2[mLW_1_counter][0];  // angle of turn (block 011) low byte
-        rx_message_chs.data[1] = lws_2[mLW_1_counter][1];  // no effect B high byte
-        rx_message_chs.data[2] = lws_2[mLW_1_counter][2];  // no effect C
-        rx_message_chs.data[3] = lws_2[mLW_1_counter][3];  // no effect D
-        rx_message_chs.data[4] = lws_2[mLW_1_counter][4];  // rate of change (block 010) was 0x00
-        rx_message_chs.data[5] = lws_2[mLW_1_counter][5];  // no effect F
-        rx_message_chs.data[6] = lws_2[mLW_1_counter][6];  // no effect F
-        rx_message_chs.data[7] = lws_2[mLW_1_counter][7];  // no effect F
+        rx_message_chs.data[0] = lws_2[mLW_1_counter][0];  // angle de braquage (bloc 011) low byte
+        rx_message_chs.data[1] = lws_2[mLW_1_counter][1];  // aucun effet B high byte
+        rx_message_chs.data[2] = lws_2[mLW_1_counter][2];  // aucun effet C
+        rx_message_chs.data[3] = lws_2[mLW_1_counter][3];  // aucun effet D
+        rx_message_chs.data[4] = lws_2[mLW_1_counter][4];  // taux de changement (bloc 010) était 0x00
+        rx_message_chs.data[5] = lws_2[mLW_1_counter][5];  // aucun effet F
+        rx_message_chs.data[6] = lws_2[mLW_1_counter][6];  // aucun effet F
+        rx_message_chs.data[7] = lws_2[mLW_1_counter][7];  // aucun effet F
         mLW_1_counter++;
         if (mLW_1_counter > 15) {
           mLW_1_counter = 0;
         }
         break;
       case MOTOR1_ID:
-        rx_message_chs.data[1] = get_lock_target_adjusted_value(0xFE, false);  // has effect
-        rx_message_chs.data[2] = get_lock_target_adjusted_value(0x20, false);  // RPM low byte no effect was 0x20
-        rx_message_chs.data[3] = get_lock_target_adjusted_value(0x4E, false);  // RPM high byte.  Will disable pre-charge pump if 0x00.  Sets raw = 8, coupling open
-        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xFE, false);  // MDNORM no effect
-        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // Pedal no effect
-        rx_message_chs.data[6] = get_lock_target_adjusted_value(0x16, false);  // idle adaptation?  Was slippage?
-        rx_message_chs.data[7] = get_lock_target_adjusted_value(0xFE, false);  // Fahrerwunschmoment req. torque?
+        rx_message_chs.data[1] = get_lock_target_adjusted_value(0xFE, false);  // a un effet
+        rx_message_chs.data[2] = get_lock_target_adjusted_value(0x20, false);  // RPM low byte aucun effet était 0x20
+        rx_message_chs.data[3] = get_lock_target_adjusted_value(0x4E, false);  // RPM high byte.  Va désactiver la pompe de précharge si 0x00.  Règle raw = 8, couplage ouvert
+        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xFE, false);  // MDNORM aucun effet
+        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // Pédale aucun effet
+        rx_message_chs.data[6] = get_lock_target_adjusted_value(0x16, false);  // "idle adaptation"?  Était patinage?
+        rx_message_chs.data[7] = get_lock_target_adjusted_value(0xFE, false);  // "Fahrerwunschmoment" torque requis?
         break;
       case MOTOR3_ID:
         //frame.data[2] = get_lock_target_adjusted_value(0xFE, false);
         //frame.data[7] = get_lock_target_adjusted_value(0x01, false);
         break;
       case BRAKES1_ID:
-        rx_message_chs.data[0] = 0x20;                                         // ASR 0x04 sets bit 4.  0x08 removes set.  Coupling open/closed
-        rx_message_chs.data[1] = 0x40;                                         // can use to disable (>130 dec).  Was 0x00; 0x41?  0x43?
-        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xFE, false);  // was 0xFE miasrl no effect
-        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // was 0xFE miasrs no effect
-        break;
+        rx_message_chs.data[0] = 0x20;                                         // ASR 0x04 règle l'octet 4.  0x08 retire le réglage.  Couplage ouvert/fermé
+        rx_message_chs.data[1] = 0x40;                                         // peut utiliser pour désactiver (>130 dec).  Était 0x00; 0x41?  0x43?
+        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xFE, false);  // Était 0xFE miasrl aucun effet
+        rx_message_chs.data[5] = get_lock_target_adjusted_value(0xFE, false);  // Était 0xFE miasrs aucun effet
       case BRAKES2_ID:
-        rx_message_chs.data[4] = get_lock_target_adjusted_value(0x7F, false);  // big affect(!) 0x7F is max
+        rx_message_chs.data[4] = get_lock_target_adjusted_value(0x7F, false);  // Grand effet(!) 0x7F est le maximum
         break;
       case BRAKES3_ID:
-        rx_message_chs.data[0] = get_lock_target_adjusted_value(0xB6, false);  // front left low
-        rx_message_chs.data[1] = 0x07;                                         // front left high
-        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xCC, false);  // front right low
-        rx_message_chs.data[3] = 0x07;                                         // front right high
-        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xD2, false);  // rear left low
-        rx_message_chs.data[5] = 0x07;                                         // rear left high
-        rx_message_chs.data[6] = get_lock_target_adjusted_value(0xD2, false);  // rear right low
-        rx_message_chs.data[7] = 0x07;                                         // rear right high
+        rx_message_chs.data[0] = get_lock_target_adjusted_value(0xB6, false);  // av. gauche low
+        rx_message_chs.data[1] = 0x07;                                         // av. gauche high
+        rx_message_chs.data[2] = get_lock_target_adjusted_value(0xCC, false);  // av. droite low
+        rx_message_chs.data[3] = 0x07;                                         // av. droite high
+        rx_message_chs.data[4] = get_lock_target_adjusted_value(0xD2, false);  // arr. gauche low
+        rx_message_chs.data[5] = 0x07;                                         // arr. gauche high
+        rx_message_chs.data[6] = get_lock_target_adjusted_value(0xD2, false);  // arr. droite low
+        rx_message_chs.data[7] = 0x07;                                         // arr. droite high
         break;
 
       case BRAKES4_ID:
-        rx_message_chs.data[0] = get_lock_target_adjusted_value(0xFE, false);  // affects estimated torque AND vehicle mode(!)
+        rx_message_chs.data[0] = get_lock_target_adjusted_value(0xFE, false);  // affecte le torque estimé ET le mode du véhicule(!)
         rx_message_chs.data[1] = 0x00;                                         //
         rx_message_chs.data[2] = 0x00;                                         //
         rx_message_chs.data[3] = 0x64;                                         // 32605
