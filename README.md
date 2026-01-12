@@ -1,7 +1,12 @@
 
-# OpenHaldex - ESP32 C6 (LVT Beta Feature Branch - English)
-An open-source Generation 1, 2 & 4 Haldex Controller which originates/is a fork from ABangingDonk's 'OpenHaldex T4'.  It has been extended into Gen2 and Gen4 variants, with Gen3 and Gen5 currently unsupported - CAN reads of these systems would be awesome! Originally based on the Teensy 4.0; the ESP32 features two TWAI (CAN) interfaces as well as WiFi and Bluetooth support; which makes it an ideal candidate for easier interfacing.
+# LVT Technologies Beta Feature Branch
+NO French translations will be released here; this is ONLY to push beta features to the main branch and to differenciate localization efforts and codebase improvements (or regressions). Please see the original (with slight liability changes) readme below:
+
+
 ![OpenHaldex-C6](/Images/BoardOverview.png)
+
+## OpenHaldex - ESP32 C6 (LVT Beta Feature Branch - English)
+An open-source Generation 1, 2 & 4 Haldex Controller which originates/is a fork from ABangingDonk's 'OpenHaldex T4'.  It has been extended into Gen2 and Gen4 variants, with Gen3 and Gen5 currently unsupported - CAN reads of these systems would be awesome! Originally based on the Teensy 4.0; the ESP32 features two TWAI (CAN) interfaces as well as WiFi and Bluetooth support; which makes it an ideal candidate for easier interfacing.
 
 ### Concept
 The basis of the module is to act as a middle man - read the incoming CAN frames destined for the OEM Haldex controller, and, if required, adjust these messages to 'trick' the Haldex into thinking more (or less) lock is required.  Generation 1, 2 and 4 are all available as 'standalone' systems - which means that no other ECUs have to be present and OpenHaldex will create the necessary frames for Haldex operation.
