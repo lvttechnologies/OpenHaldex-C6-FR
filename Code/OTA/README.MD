@@ -1,1 +1,0 @@
-OTA feature placeholder file
