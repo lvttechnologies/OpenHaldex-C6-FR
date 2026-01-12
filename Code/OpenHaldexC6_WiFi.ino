@@ -144,6 +144,23 @@ void setupUI() {
   ESPUI.addControl(Separator, "Handbrake Signal Out", "", Dark, tabDiag);
   label_handbrakeOut = ESPUI.addControl(Label, "", "0", Dark, tabDiag, generalCallback);
 
+  // create OTA Update tab
+  auto tabOTA = ESPUI.addControl(Tab, "", "OTA Update");
+  ESPUI.addControl(Separator, "Firmware Information", "", Dark, tabOTA);
+  label_firmwareVersion = ESPUI.addControl(Label, "Firmware Version", getFirmwareVersion().c_str(), Dark, tabOTA);
+  label_chipModel = ESPUI.addControl(Label, "Chip Model", ESP.getChipModel(), Dark, tabOTA);
+  label_freeHeap = ESPUI.addControl(Label, "Free Heap", String(ESP.getFreeHeap()).c_str(), Dark, tabOTA);
+  
+  ESPUI.addControl(Separator, "Update Instructions", "", Dark, tabOTA);
+  ESPUI.addControl(Label, "", "1. Ensure vehicle is stationary (speed = 0)", Dark, tabOTA);
+  ESPUI.addControl(Label, "", "2. Open: http://192.168.1.1:81/update", Dark, tabOTA);
+  ESPUI.addControl(Label, "", "3. Login: admin / haldex", Dark, tabOTA);
+  ESPUI.addControl(Label, "", "4. Upload firmware .bin file", Dark, tabOTA);
+  ESPUI.addControl(Label, "", "5. Wait for reboot", Dark, tabOTA);
+  
+  ESPUI.addControl(Separator, "Status", "", Dark, tabOTA);
+  label_otaStatus = ESPUI.addControl(Label, "OTA Status", "Ready", Dark, tabOTA);
+
   //Finally, start up the UI.
   //This should only be called once we are connected to WiFi.
   ESPUI.begin(wifiHostName);
@@ -430,6 +447,17 @@ void updateLabels(void *arg) {
     ESPUI.updateLabel(label_brakeOut, brakeActive ? "Active" : "Not Active");
     ESPUI.updateLabel(label_handbrakeOut, handbrakeActive ? "Active" : "Not Active");
 
+    // Update OTA tab labels
+    ESPUI.updateLabel(label_firmwareVersion, getFirmwareVersion());
+    ESPUI.updateLabel(label_chipModel, ESP.getChipModel());
+    ESPUI.updateLabel(label_freeHeap, String(ESP.getFreeHeap()));
+    
+    // Update OTA status - warn if vehicle is moving
+    if (received_vehicle_speed > 0) {
+      ESPUI.updateLabel(label_otaStatus, "Vehicle Moving - OTA Disabled");
+    } else {
+      ESPUI.updateLabel(label_otaStatus, "Ready for Update");
+    }
 
     vTaskDelay(labelRefresh / portTICK_PERIOD_MS);
   }
