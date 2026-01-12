@@ -1,37 +1,49 @@
 /*
-OpenHaldex-C6 - Forbes Automotive (traduit par LVT Technologies)
-Contrôleur Haldex pour Gen1, Gen2 et Gen4.  Supporte le WiFi.  Version: 1.06.  Versions dans '_ver.ino'.
+OpenHaldex-C6 - Forbes Automotive
+Haldex Controller for Gen1, Gen2 and Gen4 Haldex Controllers.  Supports WiFi.  Version: 1.06.  Versions in '_ver.ino'
 
-Base de code dérivée de OpenHaldex 4.0 - les données CAN restent inchangées, il s'agit seulement d'un port ESP32-C6.
+Codebase derived from OpenHaldex 4.0 - CAN data is the same, just ported to ESP32 C6.
 */
 
 #include <OpenHaldexC6_defs.h>
 
-// pour EEP
-Preferences pref;  // pour l'EEPROM / stockage de paramètres
+// for EEP
+Preferences pref;  // for EEPROM / storing settings
 
-// pour DEL
-Freenove_ESP32_WS2812 strip = Freenove_ESP32_WS2812(1, gpio_led, led_channel, TYPE_RGB);  // 1 DEL, broche de GPIO, canal, type de DEL
+// for LED
+Freenove_ESP32_WS2812 strip = Freenove_ESP32_WS2812(1, gpio_led, led_channel, TYPE_RGB);  // 1 led, gpio pin, channel, type of LED
 
 // for mode changing (buttons & external inputs)
-InterruptButton btnMode(gpio_mode, HIGH, GPIO_MODE_INPUT, 1000, 500, 750, 80000);          // broche, GPIO_MODE_INPUT, état lorsqu'appuyé, maintenu, auto-répété, double clic, anti-rebond
-InterruptButton btnMode_ext(gpio_mode_ext, HIGH, GPIO_MODE_INPUT, 1000, 500, 750, 80000);  // broche, GPIO_MODE_INPUT, état lorsqu'appuyé, maintenu, auto-répété, double clic, anti-rebond
+InterruptButton btnMode(gpio_mode, HIGH, GPIO_MODE_INPUT, 1000, 500, 750, 80000);          // pin, GPIO_MODE_INPUT, state when pressed, long press, autorepeat, double-click, debounce
+InterruptButton btnMode_ext(gpio_mode_ext, HIGH, GPIO_MODE_INPUT, 1000, 500, 750, 80000);  // pin, GPIO_MODE_INPUT, state when pressed, long press, autorepeat, double-click, debounce
 
 void setup() {
 #if enableDebug || detailedDebug || detailedDebugCAN || detailedDebugWiFi || detailedDebugEEP || detailedDebugIO
-  Serial.begin(500000);  // SI du série est nécessaire, débuter
+  Serial.begin(500000);  // if ANY Serial is required, begin
   DEBUG("OpenHaldex-C6 Launching...");
 #endif
 
-  readEEP();                                                      // lire l'EEPROM pour les paramètres stockés  - dans '_EEP.ino'
-  setupIO();                                                      // configurer le gpio pour l'I/O  - dans '_io.ino'
-  setupCAN();                                                     // configurer deux bus CAN - dans '_io.ino'
-  setupButtons();                                                 // configurer  'buttons' pour le changement de mode (interne et externe) - dans '_io.ino'
-  setupTasks();                                                   // configurer les tâches pour chaque fonction principale - gestion CAN Châssis et Haldex, journalisation série, Standalone, etc - dans '_io.ino'
-  connectWifi();                                                  // activer / démarrer le WiFi - dans '_wifi.ino'
-  setupUI();                                                      // configurer l'interface utilisateur pour le WiFi - dans '_wifi.ino'
+  readEEP();                                                      // read EEPROM for stored settings  - in '_EEP.ino'
+  setupIO();                                                      // setup gpio for input / output  - in '_io.ino'
+  setupCAN();                                                     // setup two CAN buses  - in '_io.ino'
+  
+  // SAFETY-CRITICAL: Confirm firmware validity after CAN initialization
+  // This MUST be called after CAN buses are initialized and system is in safe state
+  // If not called, ESP-IDF will automatically rollback on next boot
+  if (needsFirmwareConfirmation()) {
+    DEBUG("[OTA SAFETY] New firmware detected - confirming after safety checks...");
+    // Small delay to ensure CAN buses are fully initialized
+    delay(100);
+    confirmFirmwareValidity();
+  }
+  
+  setupButtons();                                                 // setup  'buttons' for changing mode (internal and external) - in '_io.ino'
+  setupTasks();                                                   // setup tasks for each of the main functions - CAN Chassis/Haldex handling, Serial prints, Standalone, etc - in '_io.ino'
+  connectWifi();                                                  // enable / start WiFi - in '_wifi.ino'
+  setupUI();                                                      // setup wifi user interface - in '_wifi.ino'
+  setupOTA();                                                     // setup OTA update server - in '_OTA.ino'
 }
 
 void loop() {
-  delay(100);  // ne sert qu'à donner plus de temps au CPU pour exécuter les tâches
+  delay(100);  // literally here to give more CPU time to tasks
 }
